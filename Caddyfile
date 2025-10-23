@@ -1,0 +1,15 @@
+{
+  email admin@tudominio.com
+}
+
+node.tudominio.com {
+  reverse_proxy node-app:3000
+}
+
+react.tudominio.com {
+  reverse_proxy react-app:80
+}
+
+php.tudominio.com {
+  reverse_proxy php-app:80
+}
