@@ -1,0 +1,11 @@
+[
+  {
+    "id": "deploy",
+    "execute-command": "/scripts/deploy.sh",
+    "command-working-directory": "/apps",
+    "pass-arguments-to-command": [
+      { "source": "payload", "name": "repository.name" },
+      { "source": "payload", "name": "ref" }
+    ]
+  }
+]
