@@ -1,0 +1,119 @@
+version: "3.9"
+
+services:
+  # 🌍 Caddy Proxy con HTTPS automático
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - caddy_net
+
+  # ⚙️ Webhook para despliegue automático desde GitHub
+  webhook:
+    image: almir/webhook
+    container_name: github-webhook
+    restart: always
+    ports:
+      - "9001:9000"
+    volumes:
+      - ./hooks.json:/etc/webhook/hooks.json:ro
+      - ./scripts:/scripts
+      - ./apps:/apps
+    networks:
+      - caddy_net
+
+  # 🔄 Watchtower para mantener imágenes actualizadas
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=3600
+
+  # 🧠 Redis
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    networks:
+      - caddy_net
+
+  # 🗄 MongoDB
+  mongo:
+    image: mongo:7
+    container_name: mongo
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - caddy_net
+
+  # 🐬 MySQL
+  mysql:
+    image: mysql:8
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppass
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - caddy_net
+
+  # 🟢 Node.js App
+  node-app:
+    build: ./apps/node-app
+    container_name: node-app
+    restart: always
+    depends_on:
+      - mongo
+      - redis
+    environment:
+      - NODE_ENV=production
+      - MONGO_URL=mongodb://mongo:27017/mydb
+      - REDIS_HOST=redis
+    networks:
+      - caddy_net
+
+  # ⚛️ React App
+  react-app:
+    build: ./apps/react-app
+    container_name: react-app
+    restart: always
+    networks:
+      - caddy_net
+
+  # 🐘 PHP + Apache
+  php-app:
+    build: ./apps/php-app
+    container_name: php-app
+    restart: always
+    depends_on:
+      - mysql
+    networks:
+      - caddy_net
+
+volumes:
+  caddy_data:
+  caddy_config:
+  mongo_data:
+  mysql_data:
+
+networks:
+  caddy_net:
+    driver: bridge
